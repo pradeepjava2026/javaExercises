@@ -1,0 +1,171 @@
+
+import java.io.*;
+import java.util.*;
+import org.junit.*;
+
+class Stock {
+  String symbol;
+  String name;
+
+  Stock(String symbol, String name) {
+    this.symbol = symbol;
+    this.name = name;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) return true;
+    if (other == null || getClass() != other.getClass()) return false;
+    Stock stock = (Stock) other;
+    return symbol.equals(stock.symbol) && name.equals(stock.name);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(symbol, name);
+  }
+}
+
+class PriceRecord {
+  Stock stock;
+  int price;
+  String date;
+
+  PriceRecord(Stock stock, int price, String date) {
+    this.stock = stock;
+    this.price = price;
+    this.date = date;
+  }
+}
+
+class StockCollection {
+
+  ArrayList<PriceRecord> priceRecords = new ArrayList<>();
+  Stock stock;
+
+  StockCollection(Stock stock) {
+    this.stock = stock;
+  }
+
+  int getNumPriceRecords() {
+    return priceRecords.size();
+  }
+
+  void addPriceRecord(PriceRecord priceRecord) {
+    if (!priceRecord.stock.equals(this.stock)) {
+      throw new IllegalArgumentException("Stock mismatch");
+    }
+    priceRecords.add(priceRecord);
+  }
+
+  // ✅ FIXED
+  int getMaxPrice() {
+    if (priceRecords.isEmpty()) return -1;
+    return priceRecords.stream().mapToInt(r -> r.price).max().getAsInt();
+  }
+
+  // ✅ FIXED
+  int getMinPrice() {
+    if (priceRecords.isEmpty()) return -1;
+    return priceRecords.stream().mapToInt(r -> r.price).min().getAsInt();
+  }
+
+  // ✅ FIXED
+  double getAvgPrice() {
+    if (priceRecords.isEmpty()) return -1.0;
+    double sum = priceRecords.stream().mapToInt(r -> r.price).sum();
+    return sum / priceRecords.size();
+  }
+
+  // ✅ NEW METHOD
+  List<Object> getBiggestChange() {
+    if (priceRecords.size() < 2) return Collections.emptyList();
+
+    // Step 1: Sort by date
+    List<PriceRecord> sorted = new ArrayList<>(priceRecords);
+    Collections.sort(sorted, Comparator.comparing(r -> r.date));
+
+    int maxChange = Integer.MIN_VALUE;
+    String startDate = "";
+    String endDate = "";
+
+    // Step 2: Compare consecutive days
+    for (int i = 1; i < sorted.size(); i++) {
+      int change = sorted.get(i).price - sorted.get(i - 1).price;
+
+      if (Math.abs(change) > Math.abs(maxChange)) {
+        maxChange = change;
+        startDate = sorted.get(i - 1).date;
+        endDate = sorted.get(i).date;
+      }
+    }
+
+    // Step 3: Return result
+    return Arrays.asList(maxChange, startDate, endDate);
+  }
+}
+
+public class Solution {
+
+  public static void main(String[] args) {
+    testStockCollection();
+    testGetBiggestChange();
+    System.out.println("All tests passed!");
+  }
+
+  private static StockCollection makeStockCollection(Stock stock, Object[][] priceData) {
+    StockCollection sc = new StockCollection(stock);
+    for (Object[] data : priceData) {
+      sc.addPriceRecord(new PriceRecord(stock, (int) data[0], (String) data[1]));
+    }
+    return sc;
+  }
+
+  public static void testStockCollection() {
+    System.out.println("Running testStockCollection");
+
+    Stock stock = new Stock("AAPL", "Apple Inc.");
+    StockCollection sc = new StockCollection(stock);
+
+    Assert.assertEquals(0, sc.getNumPriceRecords());
+    Assert.assertEquals(-1, sc.getMaxPrice());
+    Assert.assertEquals(-1, sc.getMinPrice());
+    Assert.assertEquals(-1.0, sc.getAvgPrice(), 0.001);
+
+    Object[][] data = {
+        {110, "2023-06-29"},
+        {112, "2023-07-01"},
+        {90, "2023-06-28"},
+        {105, "2023-07-06"}
+    };
+
+    sc = makeStockCollection(stock, data);
+
+    Assert.assertEquals(4, sc.getNumPriceRecords());
+    Assert.assertEquals(112, sc.getMaxPrice());
+    Assert.assertEquals(90, sc.getMinPrice());
+    Assert.assertEquals(104.25, sc.getAvgPrice(), 0.1);
+  }
+
+  // ✅ TEST FOR NEW METHOD
+  public static void testGetBiggestChange() {
+    System.out.println("Running testGetBiggestChange");
+
+    Stock stock = new Stock("AAPL", "Apple Inc.");
+
+    Object[][] data = {
+        {110, "2023-06-29"},
+        {112, "2023-07-01"},
+        {90, "2023-06-25"},
+        {105, "2023-07-06"}
+    };
+
+    StockCollection sc = makeStockCollection(stock, data);
+
+    List<Object> result = sc.getBiggestChange();
+
+    Assert.assertEquals(20, result.get(0));
+    Assert.assertEquals("2023-06-25", result.get(1));
+    Assert.assertEquals("2023-06-29", result.get(2));
+  }
+}
