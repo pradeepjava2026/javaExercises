@@ -1,0 +1,230 @@
+public interface IBook {
+    int getId();
+    String getTitle();
+    String getAuthor();
+    String getCategory();
+    int getPrice();
+}
+public class Book implements IBook {
+
+    private int id;
+    private String title;
+    private String author;
+    private String category;
+    private int price;
+
+    public Book(int id, String title, String author, String category, int price) {
+        this.id = id;
+        this.title = title;
+        this.author = author;
+        this.category = category;
+        this.price = price;
+    }
+
+    public int getId() { return id; }
+    public String getTitle() { return title; }
+    public String getAuthor() { return author; }
+    public String getCategory() { return category; }
+    public int getPrice() { return price; }
+
+    // Important for Map key comparison
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Book)) return false;
+        Book b = (Book) o;
+        return this.id == b.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
+}import java.util.Map;
+
+public interface ILibrarySystem {
+
+    void addBook(IBook book, int quantity);
+
+    void removeBook(IBook book, int quantity);
+
+    int calculateTotalPrice();
+
+    Map<String, Integer> categoryTotalPrice();
+
+    Map<String, Integer> booksInfo(); // category + author count
+}
+import java.util.*;
+
+public class LibrarySystem implements ILibrarySystem {
+
+    // Map<Book, Quantity>
+    private Map<IBook, Integer> books = new HashMap<>();
+
+    // Add book
+    public void addBook(IBook book, int quantity) {
+        books.put(book, books.getOrDefault(book, 0) + quantity);
+    }
+
+    // Remove book
+    public void removeBook(IBook book, int quantity) {
+        if (!books.containsKey(book)) return;
+
+        int current = books.get(book);
+
+        if (quantity >= current) {
+            books.remove(book);
+        } else {
+            books.put(book, current - quantity);
+        }
+    }
+
+    // Total price of all books
+    public int calculateTotalPrice() {
+        int total = 0;
+
+        for (Map.Entry<IBook, Integer> entry : books.entrySet()) {
+            total += entry.getKey().getPrice() * entry.getValue();
+        }
+
+        return total;
+    }
+
+    // Category → total price
+    public Map<String, Integer> categoryTotalPrice() {
+        Map<String, Integer> result = new HashMap<>();
+
+        for (Map.Entry<IBook, Integer> entry : books.entrySet()) {
+            String category = entry.getKey().getCategory();
+            int value = entry.getKey().getPrice() * entry.getValue();
+
+            result.put(category, result.getOrDefault(category, 0) + value);
+        }
+
+        return result;
+    }
+
+    // Category + Author → count
+    public Map<String, Integer> booksInfo() {
+        Map<String, Integer> result = new HashMap<>();
+
+        for (Map.Entry<IBook, Integer> entry : books.entrySet()) {
+            String key = entry.getKey().getCategory() + "-" + entry.getKey().getAuthor();
+            int count = entry.getValue();
+
+            result.put(key, result.getOrDefault(key, 0) + count);
+        }
+
+        return result;
+    }
+}public class Main {
+    public static void main(String[] args) {
+
+        LibrarySystem lib = new LibrarySystem();
+
+        IBook b1 = new Book(1, "Java", "James", "Programming", 500);
+        IBook b2 = new Book(2, "Python", "Guido", "Programming", 400);
+        IBook b3 = new Book(3, "History", "John", "Education", 300);
+
+        lib.addBook(b1, 2);
+        lib.addBook(b2, 3);
+        lib.addBook(b3, 1);
+
+        System.out.println("Total Price: " + lib.calculateTotalPrice());
+
+        System.out.println("Category Total Price: " + lib.categoryTotalPrice());
+
+        System.out.println("Books Info: " + lib.booksInfo());
+    }
+}public class BookInfo {
+    private String category;
+    private String author;
+    private int count;
+
+    public BookInfo(String category, String author, int count) {
+        this.category = category;
+        this.author = author;
+        this.count = count;
+    }
+
+    public String getCategory() { return category; }
+    public String getAuthor() { return author; }
+    public int getCount() { return count; }
+
+    @Override
+    public String toString() {
+        return category + " - " + author + " : " + count;
+    }
+}import java.util.List;
+
+public interface ILibrarySystem {
+
+    void addBook(IBook book, int quantity);
+
+    void removeBook(IBook book, int quantity);
+
+    int calculateTotalPrice();
+
+    List<BookInfo> booksInfo();   // ✅ updated
+}
+import java.util.*;
+
+public class LibrarySystem implements ILibrarySystem {
+
+    private Map<IBook, Integer> books = new HashMap<>();
+
+    public void addBook(IBook book, int quantity) {
+        books.put(book, books.getOrDefault(book, 0) + quantity);
+    }
+
+    public void removeBook(IBook book, int quantity) {
+        if (!books.containsKey(book)) return;
+
+        int current = books.get(book);
+
+        if (quantity >= current) {
+            books.remove(book);
+        } else {
+            books.put(book, current - quantity);
+        }
+    }
+
+    public int calculateTotalPrice() {
+        int total = 0;
+
+        for (Map.Entry<IBook, Integer> entry : books.entrySet()) {
+            total += entry.getKey().getPrice() * entry.getValue();
+        }
+
+        return total;
+    }
+
+    // ✅ MAIN CHANGE HERE
+    public List<BookInfo> booksInfo() {
+
+        // Step 1: Grouping (category + author → count)
+        Map<String, Integer> temp = new HashMap<>();
+
+        for (Map.Entry<IBook, Integer> entry : books.entrySet()) {
+            IBook book = entry.getKey();
+            int count = entry.getValue();
+
+            String key = book.getCategory() + "-" + book.getAuthor();
+
+            temp.put(key, temp.getOrDefault(key, 0) + count);
+        }
+
+        // Step 2: Convert Map → List
+        List<BookInfo> result = new ArrayList<>();
+
+        for (Map.Entry<String, Integer> entry : temp.entrySet()) {
+            String[] parts = entry.getKey().split("-");
+            String category = parts[0];
+            String author = parts[1];
+
+            result.add(new BookInfo(category, author, entry.getValue()));
+        }
+
+        return result;
+    }
+}
